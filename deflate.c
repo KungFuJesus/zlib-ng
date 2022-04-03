@@ -448,7 +448,11 @@ int32_t Z_EXPORT PREFIX(deflateResetKeep)(PREFIX3(stream) *strm) {
         strm->adler = functable.crc32_fold_reset(&s->crc_fold);
     else
 #endif
+        //strm->adler = ADLER32_INITIAL_VALUE;
+    {
         strm->adler = ADLER32_INITIAL_VALUE;
+        functable.adler32_fold_reset(&s->adler_fold, ADLER32_INITIAL_VALUE);
+    }
     s->last_flush = -2;
 
     zng_tr_init(s);
@@ -765,6 +769,7 @@ int32_t Z_EXPORT PREFIX(deflate)(PREFIX3(stream) *strm, int32_t flush) {
         if (s->strstart != 0)
             put_uint32_msb(s, strm->adler);
         strm->adler = ADLER32_INITIAL_VALUE;
+        functable.adler32_fold_reset(&s->adler_fold, ADLER32_INITIAL_VALUE);
         s->status = BUSY_STATE;
 
         /* Compression must start with an empty pending buffer */
@@ -971,8 +976,11 @@ int32_t Z_EXPORT PREFIX(deflate)(PREFIX3(stream) *strm, int32_t flush) {
         put_uint32(s, (uint32_t)strm->total_in);
     } else
 #endif
-    if (s->wrap == 1)
-        put_uint32_msb(s, strm->adler);
+    {
+        strm->adler = functable.adler32_fold_final(&s->adler_fold);
+        if (s->wrap == 1)
+            put_uint32_msb(s, strm->adler);
+    }
     flush_pending(strm);
     /* If avail_out is zero, the application will call deflate again
      * to flush the rest.
@@ -1081,9 +1089,11 @@ Z_INTERNAL unsigned read_buf(PREFIX3(stream) *strm, unsigned char *buf, unsigned
         functable.crc32_fold_copy(&strm->state->crc_fold, buf, strm->next_in, len);
 #endif
     } else {
-        memcpy(buf, strm->next_in, len);
         if (strm->state->wrap == 1)
-            strm->adler = functable.adler32(strm->adler, buf, len);
+            functable.adler32_fold_copy(&strm->state->adler_fold, buf, strm->next_in, len);
+        else
+            memcpy(buf, strm->next_in, len);
+            //strm->adler = functable.adler32(strm->adler, buf, len);
     }
     strm->next_in  += len;
     strm->total_in += len;
