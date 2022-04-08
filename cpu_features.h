@@ -6,8 +6,8 @@
 #ifndef CPU_FEATURES_H_
 #define CPU_FEATURES_H_
 
-#include "crc32_fold.h"
 #include "adler32_fold.h"
+#include "crc32_fold.h"
 
 #if defined(X86_FEATURES)
 #  include "arch/x86/x86_features.h"
@@ -48,6 +48,7 @@ extern uint32_t adler32_fold_copy_avx512(uint32_t adler, uint8_t *dst, const uin
 #endif
 #ifdef X86_AVX512VNNI_ADLER32
 extern uint32_t adler32_avx512_vnni(uint32_t adler, const unsigned char *buf, size_t len);
+extern uint32_t adler32_fold_copy_avx512_vnni(uint32_t adler, uint8_t *dst, const uint8_t *src, size_t len);
 #endif
 #ifdef POWER8_VSX_ADLER32
 extern uint32_t adler32_power8(uint32_t adler, const unsigned char* buf, size_t len);

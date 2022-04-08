@@ -3,9 +3,6 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#ifndef ADLER32_AVX2_TPL_H_
-#define ADLER32_AVX2_TPL_H_
-
 #include "../../zbuild.h"
 #include <immintrin.h>
 #include "../../adler32_fold.h"
@@ -141,5 +138,3 @@ rem_peel:
 
     return adler;
 }
-
-#endif
