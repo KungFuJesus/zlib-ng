@@ -5,6 +5,14 @@
 
 #ifdef X86_AVX_CHUNKSET
 #include <immintrin.h>
+#include "chunk_permute_table.h"
+
+#if defined(__has_feature)
+#  if __has_feature(memory_sanitizer)
+#    define MEMORY_SANITIZER 1
+#include <sanitizer/msan_interface.h>
+#  endif
+#endif
 
 typedef __m256i chunk_t;
 
@@ -14,6 +22,43 @@ typedef __m256i chunk_t;
 #define HAVE_CHUNKMEMSET_2
 #define HAVE_CHUNKMEMSET_4
 #define HAVE_CHUNKMEMSET_8
+#define HAVE_CHUNK_MAG
+
+/* Populate don't cares so that this is a direct lookup 
+ * (with some indirection into the permute table), because
+ * dist can never be 0 - 2, we'll start with an offset,
+ * subtracting 3 from the input */
+static const lut_rem_pair perm_idx_lut[29] = {
+    {0, 2},                 /* 3 */
+    {0, 0},                 /* don't care */
+    {1 * 32, 2},            /* 5 */
+    {2 * 32, 2},            /* 6 */
+    {3 * 32, 4},            /* 7 */
+    {0 * 32, 0},            /* don't care */
+    {4 * 32, 5},            /* 9 */
+    {5 * 32, 22},           /* 10 */
+    {6 * 32, 21},           /* 11 */
+    {7 * 32, 20},           /* 12 */
+    {8 * 32, 16},           /* 13 */
+    {9 * 32, 4},            /* 14 */
+    {10 * 32, 2},           /* 15 */
+    {0 * 32 , 0},           /* don't care */
+    {11 * 32, 15},          /* 17 */
+    {11 * 32 + 16, 14},     /* 18 */
+    {11 * 32 + 16 * 2, 13}, /* 19 */
+    {11 * 32 + 16 * 3, 12}, /* 20 */
+    {11 * 32 + 16 * 4, 11}, /* 21 */
+    {11 * 32 + 16 * 5, 10}, /* 22 */
+    {11 * 32 + 16 * 6, 9},  /* 23 */
+    {11 * 32 + 16 * 7, 8},  /* 24 */
+    {11 * 32 + 16 * 8, 7},  /* 25 */
+    {11 * 32 + 16 * 9, 6},  /* 26 */
+    {11 * 32 + 16 * 10, 5}, /* 27 */
+    {11 * 32 + 16 * 11, 4}, /* 28 */
+    {11 * 32 + 16 * 12, 3}, /* 29 */
+    {11 * 32 + 16 * 13, 2}, /* 30 */
+    {11 * 32 + 16 * 14, 1}  /* 31 */
+};
 
 static inline void chunkmemset_1(uint8_t *from, chunk_t *chunk) {
     *chunk = _mm256_set1_epi8(*(int8_t *)from);
@@ -43,6 +88,42 @@ static inline void loadchunk(uint8_t const *s, chunk_t *chunk) {
 
 static inline void storechunk(uint8_t *out, chunk_t *chunk) {
     _mm256_storeu_si256((__m256i *)out, *chunk);
+}
+
+static inline chunk_t GET_CHUNK_MAG(uint8_t *buf, uint32_t *chunk_rem, uint32_t dist) {
+    lut_rem_pair lut_rem = perm_idx_lut[dist - 3];
+    __m256i perm_vec, ret_vec;
+    /* While technically we only need to read 4 or 8 bytes into this vector register
+     * for a lot of cases, GCC is compiling this to a shared load for all branches,
+     * preferring the simpler code.  Given that the buf value isn't in GPRs to begin with,
+     * the 256 bit load is _probably_ just as inexpensive */
+    *chunk_rem = lut_rem.remval;
+
+#ifdef MEMORY_SANITIZER
+    /* See note in chunkset_sse4.c for why this is ok */
+    __msan_unpoison(buf+dist, 32 - dist);
+#endif
+
+    if (dist < 16) {
+        ret_vec = _mm256_castsi128_si256(_mm_loadu_si128((__m128i*)buf));
+        perm_vec = _mm256_load_si256((__m256i*)(permute_table+lut_rem.idx));
+        ret_vec = _mm256_shuffle_epi8(ret_vec, perm_vec);
+    } else {
+        ret_vec = _mm256_loadu_si256((__m256i*)buf);
+        __m128i ret_vec0 = _mm256_castsi256_si128(ret_vec);
+        /* Take advantage of the fact that only the latter half of the 256 bit vector
+         * will actually differ */
+        __m128i ret_vec1 = _mm256_extracti128_si256(ret_vec, 1);
+        __m128i perm_vec1 = _mm_load_si128((__m128i*)(permute_table + lut_rem.idx));
+        __m128i xlane_permutes = _mm_cmpgt_epi8(_mm_set1_epi8(15), perm_vec1);
+        __m128i xlane_res  = _mm_shuffle_epi8(ret_vec0, perm_vec1);
+        /* Since we can't wrap twice, we can simply keep the later half exactly how
+         * it is instead of having to _also_ shuffle those values */
+        __m128i latter_half = _mm_blendv_epi8(ret_vec1, xlane_res, xlane_permutes);
+        ret_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ret_vec0), latter_half, 1);
+    }
+
+    return ret_vec;
 }
 
 #define CHUNKSIZE        chunksize_avx

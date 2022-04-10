@@ -5,6 +5,8 @@
 #ifndef INFLATE_P_H
 #define INFLATE_P_H
 
+#include <stdlib.h>
+
 /* Architecture-specific hooks. */
 #ifdef S390_DFLTCC_INFLATE
 #  include "arch/s390/dfltcc_inflate.h"
@@ -146,7 +148,7 @@ static inline uint8_t* chunkcopy_safe(uint8_t *out, uint8_t *from, size_t len, u
      * initial bulk memcpy of the nonoverlapping region. Then, we can leverage the size of this to determine the safest
      * atomic memcpy size we can pick such that we have non-overlapping regions. This effectively becomes a safe look
      * behind or lookahead distance */
-    size_t non_olap_size = ((from > out) ? from - out : out - from);
+    size_t non_olap_size = labs(from - out);
 
     memcpy(out, from, non_olap_size);
     out += non_olap_size;
