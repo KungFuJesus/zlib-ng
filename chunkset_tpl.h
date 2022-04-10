@@ -91,6 +91,29 @@ static inline chunk_t GET_CHUNK_MAG(uint8_t *buf, uint32_t *chunk_rem, uint32_t 
 }
 #endif
 
+#ifndef HAVE_CHUNK_MAG
+/* Loads a magazine to feed into memory of the pattern */
+static inline chunk_t GET_CHUNK_MAG(uint8_t *buf, uint32_t *chunk_rem, uint32_t dist) {
+        /* This code takes string of length dist from "from" and repeats
+         * it for as many times as can fit in a chunk_t (vector register) */
+        uint32_t cpy_dist;
+        uint32_t bytes_remaining = sizeof(chunk_t);
+        chunk_t chunk_load;
+        uint8_t *cur_chunk = (uint8_t *)&chunk_load;
+        while (bytes_remaining) {
+            cpy_dist = MIN(dist, bytes_remaining);
+            memcpy(cur_chunk, buf, cpy_dist);
+            bytes_remaining -= cpy_dist;
+            cur_chunk += cpy_dist;
+            /* This allows us to bypass an expensive integer division since we're effectively
+             * counting in this loop, anyway */
+            *chunk_rem = cpy_dist;
+        }
+
+        return chunk_load;
+}
+#endif
+
 /* Copy DIST bytes from OUT - DIST into OUT + DIST * k, for 0 <= k < LEN/DIST.
    Return OUT + LEN. */
 Z_INTERNAL uint8_t* CHUNKMEMSET(uint8_t *out, unsigned dist, unsigned len) {
