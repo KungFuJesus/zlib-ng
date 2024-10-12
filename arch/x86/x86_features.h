@@ -20,6 +20,7 @@ struct x86_cpu_features {
     int has_sse42;
     int has_pclmulqdq;
     int has_vpclmulqdq;
+    int has_vbmi;
     int has_os_save_ymm;
     int has_os_save_zmm;
 };

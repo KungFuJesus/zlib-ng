@@ -108,10 +108,11 @@ void Z_INTERNAL x86_check_features(struct x86_cpu_features *features) {
                 features->has_avx512dq = ebx & 0x00020000;
                 features->has_avx512bw = ebx & 0x40000000;
                 features->has_avx512vl = ebx & 0x80000000;
+                features->has_vbmi = ecx & 0x2;
+                features->has_avx512vnni = ecx & 0x800;
             }
             features->has_avx512_common = features->has_avx512f && features->has_avx512dq && features->has_avx512bw \
               && features->has_avx512vl && features->has_bmi2;
-            features->has_avx512vnni = ecx & 0x800;
         }
     }
 }
