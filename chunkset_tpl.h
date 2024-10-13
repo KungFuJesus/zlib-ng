@@ -30,7 +30,7 @@ static inline uint8_t* CHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned len
     out += align;
     from += align;
     len -= align;
-    while (len > 0) {
+    while (len) {
         loadchunk(from, &chunk);
         storechunk(out, &chunk);
         out += sizeof(chunk_t);
@@ -96,7 +96,7 @@ static inline uint8_t* HALFCHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned
     out += align;
     from += align;
     len -= align;
-    while (len > 0) {
+    while (len) {
         loadhalfchunk(from, &chunk);
         storehalfchunk(out, &chunk);
         out += sizeof(halfchunk_t);
@@ -109,6 +109,7 @@ static inline uint8_t* HALFCHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned
 
 /* Copy DIST bytes from OUT - DIST into OUT + DIST * k, for 0 <= k < LEN/DIST.
    Return OUT + LEN. */
+#ifndef HAVE_CHUNKMEMSET
 static inline uint8_t* CHUNKMEMSET(uint8_t *out, uint8_t *from, unsigned len) {
     /* Debug performance related issues when len < sizeof(uint64_t):
        Assert(len >= sizeof(uint64_t), "chunkmemset should be called on larger chunks"); */
@@ -229,6 +230,7 @@ rem_bytes:
 
     return out;
 }
+#endif
 
 Z_INTERNAL uint8_t* CHUNKMEMSET_SAFE(uint8_t *out, uint8_t *from, unsigned len, unsigned left) {
 #if !defined(UNALIGNED64_OK)

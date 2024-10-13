@@ -110,6 +110,33 @@ macro(check_avx512_intrinsics)
     )
 endmacro()
 
+macro(check_avx512vbmi_intrinsics)
+    if(NOT NATIVEFLAG)
+        if(CMAKE_C_COMPILER_ID MATCHES "Intel")
+            if(CMAKE_HOST_UNIX OR APPLE OR CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
+                set(AVX512BMIFLAG "-mavx512f -mavx512dq -mavx512bw -mavx512vl -mbmi2 -mavx512vbmi")
+            else()
+                set(AVX512VBMIFLAG "/arch:AVX512")
+            endif()
+        elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+            set(AVX512VBMIFLAG "-mavx512f -mavx512dq -mavx512bw -mavx512vl -mbmi2 -mavx512vbmi")
+        elseif(MSVC)
+            set(AVX512VBMIFLAG "/arch:AVX512")
+        endif()
+    endif()
+    # Check whether compiler supports AVX512VBMI intrinsics
+    set(CMAKE_REQUIRED_FLAGS "${AVX512VBMIFLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
+    check_c_source_compiles(
+        "#include <immintrin.h>
+        __m512i f(__m512i x, __m512i y) {
+            return _mm512_permutexvar_epi8(x, y);
+        }
+        int main(void) { return 0; }"
+        HAVE_AVX512VBMI_INTRIN
+    )
+    set(CMAKE_REQUIRED_FLAGS)
+endmacro()
+
 macro(check_avx512vnni_intrinsics)
     if(NOT NATIVEFLAG)
         if(CMAKE_C_COMPILER_ID MATCHES "Intel")

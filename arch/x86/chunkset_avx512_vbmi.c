@@ -3,7 +3,7 @@
  */
 #include "zbuild.h"
 
-#ifdef X86_AVX512
+#ifdef X86_AVX512_VBMI
 
 #include "avx2_tables.h"
 #include <immintrin.h>
@@ -24,6 +24,10 @@ typedef __mmask16 halfmask_t;
 #define HAVE_MASKED_READWRITE
 #define HAVE_CHUNKCOPY
 #define HAVE_HALFCHUNKCOPY
+
+//#define HAVE_CHUNKMEMSET
+
+#define CHUNKMEMSET      chunkmemset_avx512_vbmi
 
 static inline halfmask_t gen_half_mask(unsigned len) {
    return (halfmask_t)_bzhi_u32(0xFFFF, len); 
@@ -67,6 +71,27 @@ static inline void storechunk_mask(uint8_t *out, mask_t mask, chunk_t *chunk) {
     _mm256_mask_storeu_epi8(out, mask, *chunk);
 }
 
+#if 0
+static inline void* memcpy_erms(void* dst, void const* src, size_t len) {
+    __asm__ volatile ("rep movsb" : "+D" (dst), "+S" (src), "+c" (len));
+    return dst;
+}
+
+static inline uint8_t* CHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned len) {
+    Assert(len > 0, "chunkcopy should never have a length 0");
+
+    memcpy_erms(out, from, len);
+    out += len;
+
+    return out;
+}
+
+static inline uint8_t* CHUNKMEMSET(uint8_t *out, uint8_t *from, unsigned len) {
+    return CHUNKCOPY(out, from, len);
+}
+#endif
+
+#if 1
 static inline uint8_t* CHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned len) {
     Assert(len > 0, "chunkcopy should never have a length 0");
 
@@ -91,43 +116,38 @@ static inline uint8_t* CHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned len
 
     return out;
 }
+#endif
 
 static inline chunk_t GET_CHUNK_MAG(uint8_t *buf, uint32_t *chunk_rem, uint32_t dist) {
     lut_rem_pair lut_rem = perm_idx_lut[dist - 3];
-    __m256i ret_vec;
-    /* While technically we only need to read 4 or 8 bytes into this vector register for a lot of cases, GCC is
-     * compiling this to a shared load for all branches, preferring the simpler code.  Given that the buf value isn't in
-     * GPRs to begin with the 256 bit load is _probably_ just as inexpensive */
     *chunk_rem = lut_rem.remval;
 
-    if (dist < 16) {
-        /* This simpler case still requires us to shuffle in 128 bit lanes, so we must apply a static offset after
-         * broadcasting the first vector register to both halves. This is _marginally_ faster than doing two separate
-         * shuffles and combining the halves later */
-        const __m256i permute_xform =
-            _mm256_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                             16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16);
-        __m256i perm_vec = _mm256_load_si256((__m256i*)(permute_table+lut_rem.idx));
-        halfmask_t load_mask = gen_half_mask(dist);
-        __m128i ret_vec0 = _mm_maskz_loadu_epi8(load_mask, buf);
-        perm_vec = _mm256_add_epi8(perm_vec, permute_xform);
-        ret_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ret_vec0), ret_vec0, 1);
-        ret_vec = _mm256_shuffle_epi8(ret_vec, perm_vec);
-    }  else {
-        halfmask_t load_mask = gen_half_mask(dist - 16);
-        __m128i ret_vec0 = _mm_loadu_si128((__m128i*)buf);
-        __m128i ret_vec1 = _mm_maskz_loadu_epi8(load_mask, (__m128i*)(buf + 16));
-        /* Take advantage of the fact that only the latter half of the 256 bit vector will actually differ */
-        __m128i perm_vec1 = _mm_load_si128((__m128i*)(permute_table + lut_rem.idx));
-        __m128i xlane_permutes = _mm_cmpgt_epi8(_mm_set1_epi8(16), perm_vec1);
-        __m128i xlane_res  = _mm_shuffle_epi8(ret_vec0, perm_vec1);
-        /* Since we can't wrap twice, we can simply keep the later half exactly how it is instead of having to _also_
-         * shuffle those values */
-        __m128i latter_half = _mm_blendv_epi8(ret_vec1, xlane_res, xlane_permutes);
-        ret_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ret_vec0), latter_half, 1);
-    }
+    /* While it would be cheaper to do a non-masked load, as masked loads of 8 bit values are
+     * a bit more expensive than other types, we have to do a masked load as the avx512 versions of this
+     * this will be called when the "from" buffer has < a chunk's worth of legal bounds */
+    mask_t loadmask = gen_mask(dist);
 
-    return ret_vec;
+    if (dist < 16) {
+        __m128i in_vec = _mm_maskz_loadu_epi8((halfmask_t)loadmask, buf);
+        /* It turns out icelake and above can do two of these 128 bit lane shuffles in a given cycle.
+         * combine that the ability to do loads on multiple ports and it seems that 128bit operations
+         * here are the winner */
+        __m128i perm_vec0 = _mm_load_si128((__m128i*)(permute_table + lut_rem.idx));
+        __m128i perm_vec1 = _mm_load_si128((__m128i*)(permute_table + lut_rem.idx + 16));
+        __m128i shuf0 = _mm_shuffle_epi8(in_vec, perm_vec0);
+        __m128i shuf1 = _mm_shuffle_epi8(in_vec, perm_vec1);
+        return _mm256_inserti64x2(_mm256_castsi128_si256(shuf0), shuf1, 1);
+    } else {
+        /* The table is not explicitly set up for full permutations, as the front half the vector, if dist > 16, is
+         * unaltered and implicitly sequential. However, we can take advantage of the single instruction, faster
+         * variant of permute here. To do this, we must specify a blend mask to keep the original elements unperturbed. The
+         * latter elements will be permuted according to the latter half of the permute vector. This is significantly cheaper
+         * than building up a modified permutation vector where the first half is a normal sequence.  */
+        __m256i in_vec = _mm256_maskz_loadu_epi8(loadmask, buf);
+        mask_t shuf_mask = 0xFFFF0000;
+        __m256i perm_vec = _mm256_loadu_si256((__m256i*)(permute_table + lut_rem.idx - 16));
+        return _mm256_mask_permutexvar_epi8(in_vec, shuf_mask, perm_vec, in_vec);
+    }
 }
 
 static inline void loadhalfchunk(uint8_t const *s, halfchunk_t *chunk) {
@@ -182,14 +202,13 @@ static inline uint8_t* HALFCHUNKCOPY(uint8_t *out, uint8_t const *from, unsigned
     return out;
 }
 
-#define CHUNKSIZE        chunksize_avx512
-#define CHUNKUNROLL      chunkunroll_avx512
-#define CHUNKMEMSET      chunkmemset_avx512
-#define CHUNKMEMSET_SAFE chunkmemset_safe_avx512
+#define CHUNKSIZE        chunksize_avx512_vbmi
+#define CHUNKUNROLL      chunkunroll_avx512_vbmi
+#define CHUNKMEMSET_SAFE chunkmemset_safe_avx512_vbmi
 
 #include "chunkset_tpl.h"
 
-#define INFLATE_FAST     inflate_fast_avx512
+#define INFLATE_FAST     inflate_fast_avx512_vbmi
 
 #include "inffast_tpl.h"
 

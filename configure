@@ -108,6 +108,7 @@ forcesse2=0
 # instruction scheduling unless you specify a reasonable -mtune= target
 avx512flag="-mavx512f -mavx512dq -mavx512bw -mavx512vl -mbmi2"
 avx512vnniflag="${avx512flag} -mavx512vnni"
+avx512bmi_flag="${avx512flag} -mavx512vbmi"
 avx2flag="-mavx2"
 sse2flag="-msse2"
 ssse3flag="-mssse3"
@@ -1111,6 +1112,24 @@ EOF
     fi
 }
 
+check_avx512bmi_intrinsics() {
+    # Check whether compiler supports AVX512-VNNI intrinsics
+    cat > $test.c << EOF
+#include <immintrin.h>
+__m512i f(__m512i x, __m512i y) {
+    return _mm512_permutexvar_epi8(x, y);
+}
+int main(void) { return 0; }
+EOF
+    if try ${CC} ${CFLAGS} ${avx512vnniflag} $test.c; then
+        echo "Checking for AVX512BMI intrinsics ... Yes." | tee -a configure.log
+        HAVE_AVX512BMI_INTRIN=1
+    else
+        echo "Checking for AVX512BMI intrinsics ... No." | tee -a configure.log
+        HAVE_AVX512BMI_INTRIN=0
+    fi
+}
+
 check_avx512vnni_intrinsics() {
     # Check whether compiler supports AVX512-VNNI intrinsics
     cat > $test.c << EOF
@@ -1602,6 +1621,15 @@ case "${ARCH}" in
                     avx512flag="${avx512flag} -mtune=skylake-avx512"
                     avx512vnniflag="${avx512vnniflag} -mtune=skylake-avx512"
                 fi
+            fi
+
+            check_avx512bmi_intrinsics
+
+            if test ${HAVE_AVX512BMI_INTRIN} -eq 1; then
+                CFLAGS="${CFLAGS} -DX86_AVX512_VBMI"
+                SFLAGS="${SFLAGS} -DX86_AVX512_VBMI"
+                ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} chunkset_avx512_vbmi.o"
+                ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} chunkset_avx512_vbmi.lo"
             fi
 
             check_avx512vnni_intrinsics

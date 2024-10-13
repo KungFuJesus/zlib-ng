@@ -5,6 +5,7 @@
 #ifndef DISABLE_RUNTIME_CPU_DETECTION
 
 #include "zbuild.h"
+#include <stdio.h>
 
 #if defined(_MSC_VER)
 #  include <intrin.h>
@@ -129,7 +130,14 @@ static void init_functable(void) {
     if (cf.x86.has_avx512_common) {
         ft.adler32 = &adler32_avx512;
         ft.adler32_fold_copy = &adler32_fold_copy_avx512;
+        ft.chunkmemset_safe = &chunkmemset_safe_avx512;
         ft.inflate_fast = &inflate_fast_avx512;
+    }
+#endif
+#ifdef X86_AVX512_VBMI
+    if (cf.x86.has_vbmi) {
+        ft.chunkmemset_safe = &chunkmemset_safe_avx512_vbmi;
+        ft.inflate_fast = &inflate_fast_avx512_vbmi;
     }
 #endif
 #ifdef X86_AVX512VNNI
