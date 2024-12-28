@@ -1421,16 +1421,16 @@ uint32_t chorba_small_nondestructive_32bit (uint32_t crc, const uint32_t* buf, s
 
     }
 #if BYTE_ORDER == BIG_ENDIAN
-    next1 = ZSWAP64(next1);
-    next2 = ZSWAP64(next2);
-    next3 = ZSWAP64(next3);
-    next4 = ZSWAP64(next4);
-    next5 = ZSWAP64(next5);
-    next6 = ZSWAP64(next6);
-    next7 = ZSWAP64(next7);
-    next8 = ZSWAP64(next8);
-    next9 = ZSWAP64(next9);
-    next10 = ZSWAP64(next10);
+    next1 = ZSWAP32(next1);
+    next2 = ZSWAP32(next2);
+    next3 = ZSWAP32(next3);
+    next4 = ZSWAP32(next4);
+    next5 = ZSWAP32(next5);
+    next6 = ZSWAP32(next6);
+    next7 = ZSWAP32(next7);
+    next8 = ZSWAP32(next8);
+    next9 = ZSWAP32(next9);
+    next10 = ZSWAP32(next10);
 #endif
 
     memcpy(final, input+(i/sizeof(uint32_t)), len-i);
