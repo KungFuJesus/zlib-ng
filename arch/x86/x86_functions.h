@@ -69,6 +69,9 @@ void     crc32_fold_vpclmulqdq(crc32_fold *crc, const uint8_t *src, size_t len, 
 uint32_t crc32_fold_vpclmulqdq_final(crc32_fold *crc);
 uint32_t crc32_vpclmulqdq(uint32_t crc32, const uint8_t *buf, size_t len);
 #endif
+#ifdef X86_CHORBA_SSE_CRC
+uint32_t crc32_chorba_sse(uint32_t crc32, const uint8_t *buf, size_t len);
+#endif
 
 
 #ifdef DISABLE_RUNTIME_CPU_DETECTION
@@ -89,6 +92,8 @@ uint32_t crc32_vpclmulqdq(uint32_t crc32, const uint8_t *buf, size_t len);
 #      define native_longest_match longest_match_sse2
 #      undef native_longest_match_slow
 #      define native_longest_match_slow longest_match_slow_sse2
+#      undef native_crc32
+#      define native_crc32 crc32_chorba_sse
 #    endif
 #endif
 // X86 - SSSE3

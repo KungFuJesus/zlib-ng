@@ -81,6 +81,7 @@ static void init_functable(void) {
         ft.compare256 = &compare256_sse2;
         ft.longest_match = &longest_match_sse2;
         ft.longest_match_slow = &longest_match_slow_sse2;
+        ft.crc32 = &crc32_chorba_sse;
 #  endif
     }
 #endif
