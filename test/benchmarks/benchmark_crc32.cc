@@ -58,6 +58,9 @@ public:
 
 #ifndef WITHOUT_CHORBA
 BENCHMARK_CRC32(generic_chorba, crc32_c, 1);
+#   if defined(X86_SSE2) && !defined(NO_CHORBA_SSE2)
+    BENCHMARK_CRC32(chorba_sse2, crc32_chorba_sse2, 1);
+#   endif
 #else
 BENCHMARK_CRC32(generic, crc32_c, 1);
 #endif
