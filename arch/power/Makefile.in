@@ -24,6 +24,8 @@ all: power_features.o \
      adler32_power8.lo \
      adler32_vmx.o \
      adler32_vmx.lo \
+	 chorba_vmx.o \
+	 chorba_vmx.lo \
      chunkset_power8.o \
      chunkset_power8.lo \
      compare256_power9.o \
@@ -52,6 +54,12 @@ adler32_vmx.o:
 
 adler32_vmx.lo:
 	$(CC) $(SFLAGS) $(PPCFLAGS) $(NOLTOFLAG) $(INCLUDES) -c -o $@ $(SRCDIR)/adler32_vmx.c
+
+chorba_vmx.o:
+	$(CC) $(CFLAGS) $(PPCFLAGS) $(NOLTOFLAG) $(INCLUDES) -c -o $@ $(SRCDIR)/chorba_vmx.c
+
+chorba_vmx.lo:
+	$(CC) $(SFLAGS) $(PPCFLAGS) $(NOLTOFLAG) $(INCLUDES) -c -o $@ $(SRCDIR)/chorba_vmx.c
 
 chunkset_power8.o:
 	$(CC) $(CFLAGS) $(P8FLAGS) $(NOLTOFLAG) $(INCLUDES) -c -o $@ $(SRCDIR)/chunkset_power8.c

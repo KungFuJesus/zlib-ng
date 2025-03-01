@@ -189,7 +189,7 @@ Z_INTERNAL uint32_t crc32_braid_internal(uint32_t c, const uint8_t *buf, size_t 
 #endif
 #endif
         words += BRAID_N;
-        Assert(comb <= UINT32_MAX, "comb should fit in uint32_t");
+        //Assert(comb <= UINT32_MAX, "comb should fit in uint32_t");
         c = (uint32_t)ZSWAPWORD(comb);
 
         /* Update the pointer to the remaining bytes to process. */

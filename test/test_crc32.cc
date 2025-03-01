@@ -271,4 +271,8 @@ TEST_CRC32(vpclmulqdq, crc32_vpclmulqdq, (test_cpu_features.x86.has_pclmulqdq &&
 TEST_CRC32(chorba_sse2, crc32_chorba_sse2, test_cpu_features.x86.has_sse2)
 #endif
 
+#if !defined(WITHOUT_CHORBA) && defined(PPC_VMX)
+TEST_CRC32(chorba_vmx, crc32_chorba_vmx, test_cpu_features.power.has_altivec);
+#endif
+
 #endif

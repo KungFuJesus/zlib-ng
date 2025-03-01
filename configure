@@ -1894,8 +1894,8 @@ EOF
                 CFLAGS="${CFLAGS} -DPPC_VMX"
                 SFLAGS="${SFLAGS} -DPPC_VMX"
 
-                ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} adler32_vmx.o slide_hash_vmx.o"
-                ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} adler32_vmx.lo slide_hash_vmx.lo"
+                ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} adler32_vmx.o chorba_vmx.o slide_hash_vmx.o"
+                ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} adler32_vmx.lo chorba_vmx.lo slide_hash_vmx.lo"
             fi
             if test $HAVE_POWER8_INTRIN -eq 1; then
                 CFLAGS="${CFLAGS} -DPOWER8_VSX -DPOWER_FEATURES"
