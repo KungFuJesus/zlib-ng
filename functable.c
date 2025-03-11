@@ -95,6 +95,16 @@ static void init_functable(void) {
         ft.inflate_fast = &inflate_fast_ssse3;
     }
 #endif
+
+    // X86 - SSE41
+#ifdef X86_SSE41
+    if (cf.x86.has_sse41) {
+#if !defined(WITHOUT_CHORBA) && !defined(NO_CHORBA_SSE2)
+        ft.crc32 = &crc32_chorba_sse41;
+#endif
+    }
+#endif
+
     // X86 - SSE4.2
 #ifdef X86_SSE42
     if (cf.x86.has_sse42) {

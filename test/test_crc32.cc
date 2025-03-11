@@ -270,5 +270,8 @@ TEST_CRC32(vpclmulqdq, crc32_vpclmulqdq, (test_cpu_features.x86.has_pclmulqdq &&
 #if !defined(WITHOUT_CHORBA) && defined(X86_SSE2) && !defined(NO_CHORBA_SSE2)
 TEST_CRC32(chorba_sse2, crc32_chorba_sse2, test_cpu_features.x86.has_sse2)
 #endif
+#if !defined(WITHOUT_CHORBA) && defined(X86_SSE41) && !defined(NO_CHORBA_SSE2)
+TEST_CRC32(chorba_sse41, crc32_chorba_sse41, test_cpu_features.x86.has_sse41)
+#endif
 
 #endif
