@@ -1,10 +1,10 @@
-#if !defined(WITHOUT_CHORBA) && defined(X86_SSE41)
+#if !defined(WITHOUT_CHORBA) && defined(X86_SSSE3)
 
 #include "zbuild.h"
 #include "crc32_braid_p.h"
 #include "crc32_braid_tbl.h"
 #include "crc32.h"
-#include <smmintrin.h>
+#include <tmmintrin.h>
 #include "arch/x86/x86_intrins.h"
 #include "arch/generic/generic_functions.h"
 #include <assert.h>
@@ -796,9 +796,9 @@ Z_FORCEINLINE uint32_t chorba_small_nondestructive_sse41(uint32_t crc, const uin
     }
 
     next1 = _mm_cvtsi128_si64x(next12);
-    next2 = _mm_extract_epi64(next12, 1);
+    next2 = _mm_cvtsi128_si64x(_mm_unpackhi_epi64(next12, next12));
     next3 = _mm_cvtsi128_si64x(next34);
-    next4 = _mm_extract_epi64(next34, 1);
+    next4 = _mm_cvtsi128_si64x(_mm_unpackhi_epi64(next34, next34));
     next5 = _mm_cvtsi128_si64x(next56);
 
     assert((len - i) < sizeof(final));

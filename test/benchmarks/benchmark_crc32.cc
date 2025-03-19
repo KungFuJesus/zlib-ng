@@ -61,7 +61,7 @@ BENCHMARK_CRC32(generic_chorba, crc32_c, 1);
 #   if defined(X86_SSE2) && !defined(NO_CHORBA_SSE2)
     BENCHMARK_CRC32(chorba_sse2, crc32_chorba_sse2, 1);
 #   endif
-#   if defined(X86_SSE41) && !defined(NO_CHORBA_SSE2)
+#   if defined(X86_SSSE3) && !defined(NO_CHORBA_SSE2)
     BENCHMARK_CRC32(chorba_sse41, crc32_chorba_sse41, 1);
 #   endif
 #else

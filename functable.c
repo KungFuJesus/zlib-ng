@@ -93,16 +93,19 @@ static void init_functable(void) {
         ft.adler32 = &adler32_ssse3;
         ft.chunkmemset_safe = &chunkmemset_safe_ssse3;
         ft.inflate_fast = &inflate_fast_ssse3;
+        ft.crc32 = &crc32_chorba_sse41;
     }
 #endif
 
     // X86 - SSE41
+#if 0
 #ifdef X86_SSE41
     if (cf.x86.has_sse41) {
 #if !defined(WITHOUT_CHORBA) && !defined(NO_CHORBA_SSE2)
         ft.crc32 = &crc32_chorba_sse41;
 #endif
     }
+#endif
 #endif
 
     // X86 - SSE4.2
