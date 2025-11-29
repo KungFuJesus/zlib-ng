@@ -2171,43 +2171,6 @@ EOF
                 fi
             fi
 
-            if test $buildarmv8 -eq 1; then
-                check_armv8_intrinsics
-
-                if test $HAVE_ARMV8_INTRIN -eq 1 || test $HAVE_ARMV8_INLINE_ASM -eq 1; then
-                    CFLAGS="${CFLAGS} -DARM_CRC32"
-                    SFLAGS="${SFLAGS} -DARM_CRC32"
-
-                    if test $HAVE_ARMV8_INTRIN -eq 1; then
-                        CFLAGS="${CFLAGS} -DARM_CRC32_INTRIN"
-                        SFLAGS="${SFLAGS} -DARM_CRC32_INTRIN"
-                    fi
-
-                    ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8.o"
-                    ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8.lo"
-
-                    # Check for PMULL support (requires NEON too)
-                    check_armv8_pmull_intrinsics
-
-                    if test $HAVE_PMULL_INTRIN -eq 1; then
-                        CFLAGS="${CFLAGS} -DARM_PMULL"
-                        SFLAGS="${SFLAGS} -DARM_PMULL"
-                        ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8_pmull.o"
-                        ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8_pmull.lo"
-
-                        # Check for PMULL+EOR3 support (ARMv8.2-A SHA3 extension)
-                        check_armv8_pmull_eor3_intrinsics
-
-                        if test $HAVE_PMULL_EOR3_INTRIN -eq 1; then
-                            CFLAGS="${CFLAGS} -DARM_PMULL_EOR3"
-                            SFLAGS="${SFLAGS} -DARM_PMULL_EOR3"
-                            ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8_pmull_eor3.o"
-                            ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8_pmull_eor3.lo"
-                        fi
-                    fi
-                fi
-            fi
-
             if test $buildneon -eq 1; then
                 check_neon_compiler_flag
 
@@ -2244,6 +2207,44 @@ EOF
                 fi
             fi
 
+            if test $buildarmv8 -eq 1; then
+                check_armv8_intrinsics
+
+                if test $HAVE_ARMV8_INTRIN -eq 1 || test $HAVE_ARMV8_INLINE_ASM -eq 1; then
+                    CFLAGS="${CFLAGS} -DARM_CRC32"
+                    SFLAGS="${SFLAGS} -DARM_CRC32"
+
+                    if test $HAVE_ARMV8_INTRIN -eq 1; then
+                        CFLAGS="${CFLAGS} -DARM_CRC32_INTRIN"
+                        SFLAGS="${SFLAGS} -DARM_CRC32_INTRIN"
+                    fi
+
+                    ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8.o"
+                    ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8.lo"
+
+                    # Check for PMULL support (requires NEON too)
+                    if test $buildneon -eq 1 && test $NEON_AVAILABLE -eq 1; then
+                        check_armv8_pmull_intrinsics
+
+                        if test $HAVE_PMULL_INTRIN -eq 1; then
+                            CFLAGS="${CFLAGS} -DARM_PMULL"
+                            SFLAGS="${SFLAGS} -DARM_PMULL"
+                            ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8_pmull.o"
+                            ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8_pmull.lo"
+
+                            # Check for PMULL+EOR3 support (ARMv8.2-A SHA3 extension)
+                            check_armv8_pmull_eor3_intrinsics
+
+                            if test $HAVE_PMULL_EOR3_INTRIN -eq 1; then
+                                CFLAGS="${CFLAGS} -DARM_PMULL_EOR3"
+                                SFLAGS="${SFLAGS} -DARM_PMULL_EOR3"
+                                ARCH_STATIC_OBJS="${ARCH_STATIC_OBJS} crc32_armv8_pmull_eor3.o"
+                                ARCH_SHARED_OBJS="${ARCH_SHARED_OBJS} crc32_armv8_pmull_eor3.lo"
+                            fi
+                        fi
+                    fi
+                fi
+            fi
         fi
     ;;
     powerpc*)
