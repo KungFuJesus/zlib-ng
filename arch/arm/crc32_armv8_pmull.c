@@ -16,16 +16,12 @@
 
 /* Carryless multiply low 64 bits, XOR with c: (a[0] * b[0]) ^ c */
 static inline uint64x2_t clmul_lo_e(uint64x2_t a, uint64x2_t b, uint64x2_t c) {
-    poly64x1_t a_lo = vget_low_p64(vreinterpretq_p64_u64(a));
-    poly64x1_t b_lo = vget_low_p64(vreinterpretq_p64_u64(b));
-    uint64x2_t r = vreinterpretq_u64_p128(vmull_p64(vget_lane_p64(a_lo, 0), vget_lane_p64(b_lo, 0)));
-    return veorq_u64(r, c);
+    return veorq_u64(clmul_lo(a, b), c);
 }
 
 /* Carryless multiply high 64 bits, XOR with c: (a[1] * b[1]) ^ c */
 static inline uint64x2_t clmul_hi_e(uint64x2_t a, uint64x2_t b, uint64x2_t c) {
-    uint64x2_t r = vreinterpretq_u64_p128(vmull_high_p64(vreinterpretq_p64_u64(a), vreinterpretq_p64_u64(b)));
-    return veorq_u64(r, c);
+    return veorq_u64(clmul_hi(a, b), c);
 }
 
 Z_INTERNAL Z_TARGET_PMULL uint32_t crc32_armv8_pmull(uint32_t crc, const uint8_t *buf, size_t len) {
