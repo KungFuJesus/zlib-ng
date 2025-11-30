@@ -56,6 +56,58 @@ macro(check_armv8_compiler_flag)
     set(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
+macro(check_armv8_pmull_compiler_flag)
+    if(NOT NATIVEFLAG)
+        if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+            check_c_compiler_flag("-march=armv8-a+crc+crypto" HAVE_MARCH_ARMV8_CRYPTO)
+            if(HAVE_MARCH_ARMV8_CRYPTO)
+                set(PMULLFLAG "-march=armv8-a+crc+crypto" CACHE INTERNAL "Compiler option to enable ARMv8 crypto/PMULL support")
+            endif()
+        endif()
+    endif()
+    # Check whether compiler supports ARMv8 PMULL intrinsics
+    set(CMAKE_REQUIRED_FLAGS "${PMULLFLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
+    check_c_source_compiles(
+        "#include <arm_neon.h>
+        poly128_t f(poly64_t a, poly64_t b) {
+            return vmull_p64(a, b);
+        }
+        int main(void) { return 0; }"
+        HAVE_ARMV8_PMULL_INTRIN
+    )
+    set(CMAKE_REQUIRED_FLAGS)
+endmacro()
+
+macro(check_armv8_pmull_eor3_compiler_flag)
+    if(NOT NATIVEFLAG)
+        if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+            check_c_compiler_flag("-march=armv8.2-a+crc+crypto+sha3" HAVE_MARCH_ARMV8_CRYPTO_SHA3)
+            if(HAVE_MARCH_ARMV8_CRYPTO_SHA3)
+                set(PMULLEOR3FLAG "-march=armv8.2-a+crc+crypto+sha3" CACHE INTERNAL "Compiler option to enable ARMv8 PMULL+EOR3 support")
+            else()
+                check_c_compiler_flag("-march=armv8-a+crc+crypto+sha3" HAVE_MARCH_ARMV8A_CRYPTO_SHA3)
+                if(HAVE_MARCH_ARMV8A_CRYPTO_SHA3)
+                    set(PMULLEOR3FLAG "-march=armv8-a+crc+crypto+sha3" CACHE INTERNAL "Compiler option to enable ARMv8 PMULL+EOR3 support")
+                endif()
+            endif()
+        endif()
+    endif()
+    # Check whether compiler supports ARMv8 PMULL + EOR3 intrinsics
+    set(CMAKE_REQUIRED_FLAGS "${PMULLEOR3FLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
+    check_c_source_compiles(
+        "#include <arm_neon.h>
+        poly128_t f(poly64_t a, poly64_t b) {
+            return vmull_p64(a, b);
+        }
+        uint64x2_t g(uint64x2_t a, uint64x2_t b, uint64x2_t c) {
+            return veor3q_u64(a, b, c);
+        }
+        int main(void) { return 0; }"
+        HAVE_ARMV8_PMULL_EOR3_INTRIN
+    )
+    set(CMAKE_REQUIRED_FLAGS)
+endmacro()
+
 macro(check_armv6_compiler_flag)
     if(NOT NATIVEFLAG)
         if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")

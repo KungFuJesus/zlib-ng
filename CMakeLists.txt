@@ -119,7 +119,7 @@ set_property(CACHE WITH_SANITIZER PROPERTY STRINGS "Memory" "Address" "Undefined
 
 if(BASEARCH_ARM_FOUND)
     cmake_dependent_option(WITH_ARMV6 "Build with ARMv6 SIMD" ON "NOT ARCH MATCHES \"aarch64\"" OFF)
-    option(WITH_ARMV8 "Build with ARMv8 CRC32 intrinsics" ON)
+    option(WITH_ARMV8 "Build with ARMv8 intrinsics" ON)
     option(WITH_NEON "Build with NEON intrinsics" ON)
 
     # Provided for backward compatibility
@@ -866,6 +866,24 @@ if(WITH_OPTIM)
                 add_feature_info(ARMV8_CRC 1 "Support ARMv8 optimized CRC hash generation, using \"${ARMV8FLAG}\"")
                 if(HAVE_ARMV8_INTRIN)
                     add_definitions(-DARM_CRC32_INTRIN)
+                endif()
+
+                check_armv8_pmull_compiler_flag()
+                if(HAVE_ARMV8_PMULL_INTRIN)
+                    add_definitions(-DARM_PMULL)
+                    set(PCMULL_SRCS ${ARCHDIR}/crc32_armv8_pmull.c)
+                    set_property(SOURCE ${PCMULL_SRCS} PROPERTY COMPILE_FLAGS "${PMULLFLAG} ${NOLTOFLAG}")
+                    list(APPEND ZLIB_ARCH_SRCS ${PCMULL_SRCS})
+                    add_feature_info(ARMV8_PMULL 1 "Support ARMv8 PMULL instructions for CRC, using \"${PMULLFLAG}\"")
+
+                    check_armv8_pmull_eor3_compiler_flag()
+                    if(HAVE_ARMV8_PMULL_EOR3_INTRIN)
+                        add_definitions(-DARM_PMULL_EOR3)
+                        set(PCMULLEOR3_SRCS ${ARCHDIR}/crc32_armv8_pmull_eor3.c)
+                        set_property(SOURCE ${PCMULLEOR3_SRCS} PROPERTY COMPILE_FLAGS "${PMULLEOR3FLAG} ${NOLTOFLAG}")
+                        list(APPEND ZLIB_ARCH_SRCS ${PCMULLEOR3_SRCS})
+                        add_feature_info(ARMV8_PMULL_EOR3 1 "Support ARMv8 PMULL + EOR3 instructions for CRC, using \"${PMULLEOR3FLAG}\"")
+                    endif()
                 endif()
             else()
                 set(WITH_ARMV8 OFF)
@@ -1668,7 +1686,7 @@ add_feature_info(WITH_INFLATE_ALLOW_INVALID_DIST WITH_INFLATE_ALLOW_INVALID_DIST
 
 if(BASEARCH_ARM_FOUND)
     add_feature_info(WITH_ARMV6 WITH_ARMV6 "Build with ARMv6 SIMD")
-    add_feature_info(WITH_ARMV8 WITH_ARMV8 "Build with ARMv8 CRC32 intrinsics")
+    add_feature_info(WITH_ARMV8 WITH_ARMV8 "Build with ARMv8 intrinsics")
     add_feature_info(WITH_NEON WITH_NEON "Build with NEON intrinsics")
 elseif(BASEARCH_PPC_FOUND)
     add_feature_info(WITH_ALTIVEC WITH_ALTIVEC "Build with AltiVec optimisations")
