@@ -68,7 +68,11 @@ macro(check_armv8_pmull_compiler_flag)
     # Check whether compiler supports ARMv8 PMULL intrinsics
     set(CMAKE_REQUIRED_FLAGS "${PMULLFLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
     check_c_source_compiles(
-        "#include <arm_neon.h>
+        "#if defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM64EC))
+        #  include <arm64_neon.h>
+        #else
+        #  include <arm_neon.h>
+        #endif
         poly128_t f(poly64_t a, poly64_t b) {
             return vmull_p64(a, b);
         }
@@ -95,7 +99,11 @@ macro(check_armv8_pmull_eor3_compiler_flag)
     # Check whether compiler supports ARMv8 PMULL + EOR3 intrinsics
     set(CMAKE_REQUIRED_FLAGS "${PMULLEOR3FLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
     check_c_source_compiles(
-        "#include <arm_neon.h>
+        "#if defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM64EC))
+        #  include <arm64_neon.h>
+        #else
+        #  include <arm_neon.h>
+        #endif
         poly128_t f(poly64_t a, poly64_t b) {
             return vmull_p64(a, b);
         }
