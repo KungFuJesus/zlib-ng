@@ -10,9 +10,7 @@
 #include <arm_neon.h>
 
 static inline uint64x2_t clmul_scalar(uint32_t a, uint32_t b) {
-  uint64x2_t r;
-  __asm("pmull %0.1q, %1.1d, %2.1d\n" : "=w"(r) : "w"(vmovq_n_u64(a)), "w"(vmovq_n_u64(b)));
-  return r;
+  return vreinterpretq_u64_p128(vmull_p64((poly64_t)a, (poly64_t)b));
 }
 
 static uint32_t xnmodp(uint64_t n) /* x^n mod P, in log(n) time */ {
