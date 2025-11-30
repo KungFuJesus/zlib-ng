@@ -41,10 +41,9 @@ Z_INTERNAL Z_TARGET_PMULL uint32_t crc32_armv8_pmull(uint32_t crc, const uint8_t
     /* Large buffer path: 4-way scalar CRC + 3-way PMULL folding (112 bytes/iter) */
     if (len >= 112) {
         const uint8_t *end = buf + len;
-        size_t blk = len / 112;               /* Number of 112-byte blocks */
+        size_t blk = len / 112;                  /* Number of 112-byte blocks */
         size_t klen = blk * 16;                  /* Scalar stride per CRC lane */
         const uint8_t *buf2 = buf + klen * 4;    /* Vector data starts after scalar lanes */
-        const uint8_t *limit = buf + klen - 32;
         uint32_t crc1 = 0, crc2 = 0, crc3 = 0;
         uint64x2_t vc0, vc1, vc2, vc3;
         uint64_t vc;
@@ -59,26 +58,30 @@ Z_INTERNAL Z_TARGET_PMULL uint32_t crc32_armv8_pmull(uint32_t crc, const uint8_t
         buf2 += 48;
 
         /* Main loop: fold vectors + 4-way parallel scalar CRC */
-        while (buf <= limit) {
-            /* Fold 3 vector lanes */
-            y0 = clmul_lo_e(x0, k, vld1q_u64((const uint64_t*)buf2));
-            x0 = clmul_hi_e(x0, k, y0);
-            y1 = clmul_lo_e(x1, k, vld1q_u64((const uint64_t*)(buf2 + 16)));
-            x1 = clmul_hi_e(x1, k, y1);
-            y2 = clmul_lo_e(x2, k, vld1q_u64((const uint64_t*)(buf2 + 32)));
-            x2 = clmul_hi_e(x2, k, y2);
+        if (blk > 1) {
+            /* Only form a limit pointer when we have at least 2 blocks. */
+            const uint8_t *limit = buf + klen - 32;
+            while (buf <= limit) {
+                /* Fold 3 vector lanes */
+                y0 = clmul_lo_e(x0, k, vld1q_u64((const uint64_t*)buf2));
+                x0 = clmul_hi_e(x0, k, y0);
+                y1 = clmul_lo_e(x1, k, vld1q_u64((const uint64_t*)(buf2 + 16)));
+                x1 = clmul_hi_e(x1, k, y1);
+                y2 = clmul_lo_e(x2, k, vld1q_u64((const uint64_t*)(buf2 + 32)));
+                x2 = clmul_hi_e(x2, k, y2);
 
-            /* 4-way parallel scalar CRC (16 bytes each) */
-            crc0 = __crc32d(crc0, *(const uint64_t*)buf);
-            crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen));
-            crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2));
-            crc3 = __crc32d(crc3, *(const uint64_t*)(buf + klen * 3));
-            crc0 = __crc32d(crc0, *(const uint64_t*)(buf + 8));
-            crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen + 8));
-            crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2 + 8));
-            crc3 = __crc32d(crc3, *(const uint64_t*)(buf + klen * 3 + 8));
-            buf += 16;
-            buf2 += 48;
+                /* 4-way parallel scalar CRC (16 bytes each) */
+                crc0 = __crc32d(crc0, *(const uint64_t*)buf);
+                crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen));
+                crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2));
+                crc3 = __crc32d(crc3, *(const uint64_t*)(buf + klen * 3));
+                crc0 = __crc32d(crc0, *(const uint64_t*)(buf + 8));
+                crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen + 8));
+                crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2 + 8));
+                crc3 = __crc32d(crc3, *(const uint64_t*)(buf + klen * 3 + 8));
+                buf += 16;
+                buf2 += 48;
+            }
         }
 
         /* Reduce 3 vectors to 1: x0 = fold(x0, x1), then x0 = fold(x0, x2) */

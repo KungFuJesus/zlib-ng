@@ -34,7 +34,6 @@ Z_INTERNAL Z_TARGET_PMULL_EOR3 uint32_t crc32_armv8_pmull_eor3(uint32_t crc, con
         size_t blk = len / 192;                  /* Number of 192-byte blocks */
         size_t klen = blk * 16;                  /* Scalar stride per CRC lane */
         const uint8_t *buf2 = buf + klen * 3;    /* Vector data starts after scalar lanes */
-        const uint8_t *limit = buf + klen - 32;
         uint32_t crc1 = 0, crc2 = 0;
         uint64x2_t vc0, vc1, vc2;
         uint64_t vc;
@@ -55,38 +54,42 @@ Z_INTERNAL Z_TARGET_PMULL_EOR3 uint32_t crc32_armv8_pmull_eor3(uint32_t crc, con
         buf2 += 144;
 
         /* Main loop: fold 9 vectors + 3-way parallel scalar CRC */
-        while (buf <= limit) {
-            /* Fold all 9 vector lanes using PMULL */
-            y0 = clmul_lo(x0, k), x0 = clmul_hi(x0, k);
-            y1 = clmul_lo(x1, k), x1 = clmul_hi(x1, k);
-            y2 = clmul_lo(x2, k), x2 = clmul_hi(x2, k);
-            y3 = clmul_lo(x3, k), x3 = clmul_hi(x3, k);
-            y4 = clmul_lo(x4, k), x4 = clmul_hi(x4, k);
-            y5 = clmul_lo(x5, k), x5 = clmul_hi(x5, k);
-            y6 = clmul_lo(x6, k), x6 = clmul_hi(x6, k);
-            y7 = clmul_lo(x7, k), x7 = clmul_hi(x7, k);
-            y8 = clmul_lo(x8, k), x8 = clmul_hi(x8, k);
+        if (blk > 1) {
+            /* Only form a limit pointer when we have at least 2 blocks. */
+            const uint8_t *limit = buf + klen - 32;
+            while (buf <= limit) {
+                /* Fold all 9 vector lanes using PMULL */
+                y0 = clmul_lo(x0, k), x0 = clmul_hi(x0, k);
+                y1 = clmul_lo(x1, k), x1 = clmul_hi(x1, k);
+                y2 = clmul_lo(x2, k), x2 = clmul_hi(x2, k);
+                y3 = clmul_lo(x3, k), x3 = clmul_hi(x3, k);
+                y4 = clmul_lo(x4, k), x4 = clmul_hi(x4, k);
+                y5 = clmul_lo(x5, k), x5 = clmul_hi(x5, k);
+                y6 = clmul_lo(x6, k), x6 = clmul_hi(x6, k);
+                y7 = clmul_lo(x7, k), x7 = clmul_hi(x7, k);
+                y8 = clmul_lo(x8, k), x8 = clmul_hi(x8, k);
 
-            /* EOR3: combine hi*k, lo*k, and new data in one instruction */
-            x0 = veor3q_u64(x0, y0, vld1q_u64((const uint64_t*)buf2));
-            x1 = veor3q_u64(x1, y1, vld1q_u64((const uint64_t*)(buf2 + 16)));
-            x2 = veor3q_u64(x2, y2, vld1q_u64((const uint64_t*)(buf2 + 32)));
-            x3 = veor3q_u64(x3, y3, vld1q_u64((const uint64_t*)(buf2 + 48)));
-            x4 = veor3q_u64(x4, y4, vld1q_u64((const uint64_t*)(buf2 + 64)));
-            x5 = veor3q_u64(x5, y5, vld1q_u64((const uint64_t*)(buf2 + 80)));
-            x6 = veor3q_u64(x6, y6, vld1q_u64((const uint64_t*)(buf2 + 96)));
-            x7 = veor3q_u64(x7, y7, vld1q_u64((const uint64_t*)(buf2 + 112)));
-            x8 = veor3q_u64(x8, y8, vld1q_u64((const uint64_t*)(buf2 + 128)));
+                /* EOR3: combine hi*k, lo*k, and new data in one instruction */
+                x0 = veor3q_u64(x0, y0, vld1q_u64((const uint64_t*)buf2));
+                x1 = veor3q_u64(x1, y1, vld1q_u64((const uint64_t*)(buf2 + 16)));
+                x2 = veor3q_u64(x2, y2, vld1q_u64((const uint64_t*)(buf2 + 32)));
+                x3 = veor3q_u64(x3, y3, vld1q_u64((const uint64_t*)(buf2 + 48)));
+                x4 = veor3q_u64(x4, y4, vld1q_u64((const uint64_t*)(buf2 + 64)));
+                x5 = veor3q_u64(x5, y5, vld1q_u64((const uint64_t*)(buf2 + 80)));
+                x6 = veor3q_u64(x6, y6, vld1q_u64((const uint64_t*)(buf2 + 96)));
+                x7 = veor3q_u64(x7, y7, vld1q_u64((const uint64_t*)(buf2 + 112)));
+                x8 = veor3q_u64(x8, y8, vld1q_u64((const uint64_t*)(buf2 + 128)));
 
-            /* 3-way parallel scalar CRC (16 bytes each) */
-            crc0 = __crc32d(crc0, *(const uint64_t*)buf);
-            crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen));
-            crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2));
-            crc0 = __crc32d(crc0, *(const uint64_t*)(buf + 8));
-            crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen + 8));
-            crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2 + 8));
-            buf += 16;
-            buf2 += 144;
+                /* 3-way parallel scalar CRC (16 bytes each) */
+                crc0 = __crc32d(crc0, *(const uint64_t*)buf);
+                crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen));
+                crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2));
+                crc0 = __crc32d(crc0, *(const uint64_t*)(buf + 8));
+                crc1 = __crc32d(crc1, *(const uint64_t*)(buf + klen + 8));
+                crc2 = __crc32d(crc2, *(const uint64_t*)(buf + klen * 2 + 8));
+                buf += 16;
+                buf2 += 144;
+            }
         }
 
         /* Reduce 9 vectors to 1 using tree reduction */
