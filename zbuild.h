@@ -127,6 +127,13 @@
 /* Ignore unused variable warning */
 #define Z_UNUSED(var) (void)(var)
 
+/* Force compiler to treat variable as modified */
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__) || defined(__aarch64__))
+#  define Z_TOUCH(var) __asm__ ("" : "+r"(var))
+#else
+#  define Z_TOUCH(var) (void)(var)
+#endif
+
 #if defined(HAVE_VISIBILITY_INTERNAL)
 #  define Z_INTERNAL __attribute__((visibility ("internal")))
 #elif defined(HAVE_VISIBILITY_HIDDEN)
