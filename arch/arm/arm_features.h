@@ -11,6 +11,7 @@ struct arm_cpu_features {
     int has_crc32;
     int has_pmull;
     int has_eor3;
+    int is_apple; /* For now, Apple is the only performant pmull CPU */
 };
 
 void Z_INTERNAL arm_check_features(struct arm_cpu_features *features);

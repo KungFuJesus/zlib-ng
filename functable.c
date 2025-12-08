@@ -254,13 +254,13 @@ static int init_functable(void) {
 #endif
     // ARM - PMULL
 #ifdef ARM_PMULL
-    if (cf.arm.has_crc32 && cf.arm.has_pmull) {
+    if (cf.arm.has_crc32 && cf.arm.has_pmull && cf.arm.is_apple) {
         ft.crc32 = &crc32_armv8_pmull;
     }
 #endif
     // ARM - PMULL EOR3
 #ifdef ARM_PMULL_EOR3
-    if (cf.arm.has_crc32 && cf.arm.has_pmull && cf.arm.has_eor3) {
+    if (cf.arm.has_crc32 && cf.arm.has_pmull && cf.arm.has_eor3 && cf.arm.is_apple) {
         ft.crc32 = &crc32_armv8_pmull_eor3;
     }
 #endif

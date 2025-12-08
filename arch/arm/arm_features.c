@@ -224,6 +224,33 @@ static inline int arm_has_simd(void) {
 }
 #endif
 
+static inline int is_apple_silicon(void) {
+#if defined(__APPLE__)
+    /* If you're on Mac OS and on ARM, it's Apple silicon as far as we can tell */
+    return 1;
+#elif defined(__linux__)
+    /* We have to support the CPUID feature in HWCAP */
+    if (!(getauxval(AT_HWCAP) & HWCAP_CPUID)) {
+        return 0;
+    }
+
+    unsigned long __mid_reg;
+    __asm__("mrs %0, MIDR_EL1" : "=r" (__mid_reg));
+    return (__mid_reg >> 24) == 0x61;
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+    unsigned long hwcap = 0;
+    elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap));
+    if (!(hwcap & HWCAP_CPUID)) {
+        return 0;
+    }
+    unsigned long __mid_reg;
+    __asm__("mrs %0, MIDR_EL1" : "=r" (__mid_reg));
+    return (__mid_reg >> 24) == 0x61;
+#else
+    return 0;
+#endif
+}
+
 void Z_INTERNAL arm_check_features(struct arm_cpu_features *features) {
 #if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
     features->has_simd = 0; /* never available */
@@ -235,4 +262,5 @@ void Z_INTERNAL arm_check_features(struct arm_cpu_features *features) {
     features->has_crc32 = arm_has_crc32();
     features->has_pmull = arm_has_pmull();
     features->has_eor3 = arm_has_eor3();
+    features->is_apple = is_apple_silicon();
 }
