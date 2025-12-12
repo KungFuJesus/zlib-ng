@@ -24,7 +24,14 @@ const char PREFIX(inflate_copyright)[] = " inflate 1.3.1 Copyright 1995-2024 Mar
 /* Count number of codes for each code length. */
 static inline void count_lengths(uint16_t *lens, int codes, uint16_t *count) {
     int sym;
-    static const ALIGNED_(32) uint8_t one[256] = {
+
+#ifdef UNALIGNED
+    static const ALIGNED_(32) uint8_t one[32] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+#else
+    static const ALIGNED_(16) uint8_t one[256] = {
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -42,18 +49,33 @@ static inline void count_lengths(uint16_t *lens, int codes, uint16_t *count) {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
     };
+#endif
 
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
     uint8x16_t s1 = vdupq_n_u8(0);
     uint8x16_t s2 = vdupq_n_u8(0);
 
+#ifdef UNALIGNED
+    const uint8_t *p = &one[16];
+#else
     const uint8_t *p = one;
+#endif
+
     if (codes & 1) {
+#ifdef UNALIGNED
+        s1 = vld1q_u8(&p[-lens[0]]);
+#else
         s1 = vld1q_u8(&p[16 * (lens[0])]);
+#endif
     }
     for (sym = codes & 1; sym < codes; sym += 2) {
+#ifdef UNALIGNED
+      s1 = vaddq_u8(s1, vld1q_u8(&p[-lens[sym]]));
+      s2 = vaddq_u8(s2, vld1q_u8(&p[-lens[sym+1]]));
+#else
       s1 = vaddq_u8(s1, vld1q_u8(&p[16 * lens[sym]]));
       s2 = vaddq_u8(s2, vld1q_u8(&p[16 * lens[sym+1]]));
+#endif
     }
 
     vst1q_u16(&count[0], vaddl_u8(vget_low_u8(s1), vget_low_u8(s2)));
@@ -63,13 +85,26 @@ static inline void count_lengths(uint16_t *lens, int codes, uint16_t *count) {
     __m128i s1 = _mm_setzero_si128();
     __m128i s2 = _mm_setzero_si128();
 
-    const uint8_t *p = (uint8_t*)one;
+#ifdef UNALIGNED
+    const uint8_t *p = &one[16];
+#else
+    const uint8_t *p = one;
+#endif
     if (codes & 1) {
+#ifdef UNALIGNED
+        s1 = _mm_loadu_si128((const __m128i*)&p[-lens[0]]);
+#else
         s1 = _mm_load_si128((const __m128i*)&p[16 * (lens[0])]);
+#endif
     }
     for (sym = codes & 1; sym < codes; sym += 2) {
+#ifdef UNALIGNED
+        s1 = _mm_add_epi8(s1, _mm_loadu_si128((const __m128i*)&p[-lens[sym]]));  // vaddq_u8
+        s2 = _mm_add_epi8(s2, _mm_loadu_si128((const __m128i*)&p[-lens[sym+1]]));
+#else
         s1 = _mm_add_epi8(s1, _mm_load_si128((const __m128i*)&p[16 * lens[sym]]));  // vaddq_u8
         s2 = _mm_add_epi8(s2, _mm_load_si128((const __m128i*)&p[16 * lens[sym+1]]));
+#endif
     }
 
 #  if defined(__AVX2__)

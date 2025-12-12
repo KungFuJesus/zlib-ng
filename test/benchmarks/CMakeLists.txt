@@ -91,6 +91,7 @@ if(WITH_BENCHMARK_APPS)
 
     add_executable(benchmark_zlib_apps ${BENCH_APP_SRCS})
 
+#[[
     if(DEFINED BUILD_ALT_BENCH)
         set(ZLIB_ALT_LIB "libz.a" CACHE FILEPATH "Optional alternative zlib implementation (defaults to stock zlib)")
         add_executable(benchmark_zlib_apps_alt ${BENCH_APP_SRCS})
@@ -102,6 +103,7 @@ if(WITH_BENCHMARK_APPS)
             ${PNG_INCLUDE_DIR}
             ${benchmark_SOURCE_DIR}/benchmark/include)
     endif()
+]]
 
     target_include_directories(benchmark_zlib_apps PRIVATE
         ${PROJECT_SOURCE_DIR}
