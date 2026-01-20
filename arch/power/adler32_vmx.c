@@ -47,7 +47,10 @@ static void vmx_accum32(uint32_t *s, const uint8_t *buf, size_t len) {
      * data dependency bubble in the sum */
     vector unsigned int adacc_0 = zero;
 
-    while (len >= 64) {
+    int num_iter = len / 4;
+    int rem = len & 3;
+
+    while (num_iter--) {
         vector unsigned char d0 = vec_ld(0, buf);
         vector unsigned char d1 = vec_ld(16, buf);
         vector unsigned char d2 = vec_ld(32, buf);
@@ -71,24 +74,22 @@ static void vmx_accum32(uint32_t *s, const uint8_t *buf, size_t len) {
         adacc_prev = adacc;
         adacc_prev_0 = adacc_0;
         buf += 64;
-        len -= 64;
     }
 
     adacc = vec_add(adacc, adacc_0);
     s3acc = vec_add(s3acc, s3acc_0);
     s3acc = vec_sl(s3acc, vec_splat_u32(6));
 
-    if (len >= 16) {
+    if (rem) {
         adacc_prev = vec_add(adacc_prev_0, adacc_prev);
         adacc_prev = vec_sl(adacc_prev, vec_splat_u32(4));
-        while (len >= 16) {
+        while (rem--) {
             vector unsigned char d0 = vec_ld(0, buf);
             adacc = vec_sum4s(d0, adacc);
             s3acc = vec_add(s3acc, adacc_prev);
             s2acc = vec_msum(t3, d0, s2acc);
             adacc_prev = vec_sl(adacc, vec_splat_u32(4));
             buf += 16;
-            len -= 16;
         }
     }
 
@@ -129,26 +130,29 @@ Z_INTERNAL uint32_t adler32_vmx(uint32_t adler, const uint8_t *buf, size_t len) 
 
     /* Align buffer to 16 bytes */
     uintptr_t align_diff = ALIGN_DIFF(buf, 16);
+    size_t cur_nmax = NMAX;
     if (align_diff) {
-        adler32_copy_small_pair(pair, NULL, buf, align_diff, 16, 0);
+        adler32_copy_small_pair(pair, NULL, buf, align_diff, 0);
         buf += align_diff;
         len -= align_diff;
+        cur_nmax -= align_diff;
     }
 
+    size_t n = MIN(len, cur_nmax) & ~15;  /* Round down to nearest 16 bytes */
     while (len >= 16) {
-        size_t n = MIN(len, NMAX) & ~15;  /* Round down to nearest 16 bytes */
-
-        vmx_accum32(pair, buf, n);
+        vmx_accum32(pair, buf, n / 16);
 
         pair[0] %= BASE;
         pair[1] %= BASE;
 
         buf += n;
         len -= n;
+        n = (MIN(len, NMAX) & ~15);  /* Round down to nearest 16 bytes */
     }
 
     /* Process tail (len < 16).  */
-    return adler32_copy_small_pair(pair, NULL, buf, len, 16, 0);
+    adler32_copy_small_pair(pair, NULL, buf, len, 0);
+    return (pair[0] % BASE) | ((pair[1] % BASE) << 16);
 }
 
 /* VMX stores can have higher latency than optimized memcpy */

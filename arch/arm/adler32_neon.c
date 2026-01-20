@@ -189,7 +189,7 @@ Z_FORCEINLINE static uint32_t adler32_copy_impl(uint32_t adler, uint8_t *dst, co
      * it's unclear how many SIPs will benefit from it. */
     uintptr_t align_diff = ALIGN_DIFF(src, 32);
     if (align_diff) {
-        adler32_copy_small_pair(pair, dst, src, align_diff, 32, COPY);
+        adler32_copy_small_pair(pair, dst, src, align_diff, COPY);
         if (COPY)
             dst += align_diff;
         src += align_diff;
@@ -211,7 +211,7 @@ Z_FORCEINLINE static uint32_t adler32_copy_impl(uint32_t adler, uint8_t *dst, co
     }
 
     /* Process tail (len < 16).  */
-    return adler32_copy_small_pair(pair, dst, src, len, 16, COPY);
+    return adler32_copy_small_pair(pair, dst, src, len, COPY);
 }
 
 Z_INTERNAL uint32_t adler32_neon(uint32_t adler, const uint8_t *src, size_t len) {
