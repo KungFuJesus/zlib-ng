@@ -50,7 +50,7 @@ static void vmx_accum32(uint32_t *s, const uint8_t *buf, size_t len) {
     int num_iter = len / 4;
     int rem = len & 3;
 
-    for (int i = 0; i < num_iter; ++i) {
+    while (num_iter--) {
         vector unsigned char d0 = vec_ld(0, buf);
         vector unsigned char d1 = vec_ld(16, buf);
         vector unsigned char d2 = vec_ld(32, buf);
@@ -130,31 +130,32 @@ Z_INTERNAL uint32_t adler32_vmx(uint32_t adler, const uint8_t *buf, size_t len) 
     pair[3] = 0;
 
     // Align buffer
-    int n = NMAX;
+    int starting_max = NMAX;
     unsigned int done = 0;
-    size_t align_len = (size_t)MIN(ALIGN_DIFF(buf, 16), len);
+    uintptr_t align_len = MIN(ALIGN_DIFF(buf, 16), len);
     if (align_len) {
         adler32_copy_small(&pair[0], NULL, buf, align_len, &pair[1], 16, 0);
-        done += align_len;
+        len -= align_len;
         /* Rather than rebasing, we can reduce the max sums for the
          * first round only */
-        n -= align_len;
+        starting_max -= align_len;
+        buf += align_len;
     }
-    for (size_t i = align_len; i < len; i += n) {
-        int remaining = (int)(len-i);
-        n = MIN(remaining, (i == align_len) ? n : NMAX);
-        if (n < 16)
-            break;
 
-        vmx_accum32(pair, buf + i, n / 16);
+    int n = MIN(len, starting_max) & ~15;
+
+    while (len >= 16) {
+        vmx_accum32(pair, buf, n / 16);
         pair[0] %= BASE;
         pair[1] %= BASE;
 
-        done += (n / 16) * 16;
+        buf += n;
+        len -= n;
+        n = MIN(len, NMAX) & ~15;
     }
 
     /* Process tail (len < 16).  */
-    return adler32_copy_tail(pair[0], NULL, buf + done, len - done, pair[1], done < len, 16, 0);
+    return adler32_copy_tail(pair[0], NULL, buf + done, len, pair[1], len, 16, 0);
 }
 
 /* VMX stores can have higher latency than optimized memcpy */
